@@ -1,0 +1,8 @@
+lxml
+lark-parser
+argh
+ipaddress
+pyinstaller
+argcomplete
+addict
+enum

@@ -1,0 +1,38 @@
+# -*- nginx -*-
+
+host {
+    cmd "sudo ip route add 10.0.1.0/24 via 172.17.0.2";
+
+}
+
+docker "mytest1" {
+    mount "/data/qemu";
+    x11 true;
+    cmd "iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE";
+}
+
+# nat + dhcp + gateway
+network "mynet1" {
+    bridge.name="mybr1"
+    forward.mode=route
+    # forward.mode=nat
+    # forward.nat.port {start=1024 end=65535}
+    ip {
+        address=10.0.1.1 netmask=24
+        dhcp {
+            range {start=10.0.1.200 end=10.0.1.254}
+            host  {mac=52:54:00:00:01:02 name=vm1test ip=10.0.1.2}
+        }
+    }
+}
+
+network "mynet2" {}
+
+vm "vm1test" {
+    ram  2048;
+    disk  "path=/data/qemu/tmp/vm1test.qcow2";
+    network  "network=mynet1,mac=52:54:00:00:01:02";
+    network  "network=mynet2";
+    graphics "spice,listen=0.0.0.0";
+
+}

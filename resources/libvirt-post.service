@@ -1,0 +1,8 @@
+[Unit]
+Description=Setup Devices and directories and environment for libvirtd
+After=libvirtd.service
+[Service]
+Type=oneshot
+ExecStart=/bin/sh /libvirt-post.sh
+[Install]
+WantedBy=multi-user.target
