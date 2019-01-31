@@ -368,7 +368,7 @@ and the networks you create.
 Example:
 
     docker "mycontainer" {
-        mount "/data/qemu/NGFW-16097";
+        mount "/data/qemu/vmtest";
         mount "/data/qemu/base";
         x11 true;
         start_cmd "iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE";
@@ -601,7 +601,7 @@ I prefer the second approach, so the config now becomes:
     start_cmd "sudo ip route add 192.168.100.0/24 via 172.17.0.2";
     stop_cmd "sudo ip route del 192.168.100.0/24 via 172.17.0.2";
     docker "mycontainer" {
-        mount "/data/qemu/NGFW-16097";
+        mount "/data/qemu/vmtest";
         mount "/data/qemu/base";
         start_cmd "iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE";
     }
