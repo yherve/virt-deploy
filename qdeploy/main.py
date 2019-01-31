@@ -9,15 +9,15 @@ import os
 import shutil
 import sys
 import shlex
+import argparse
 from copy import deepcopy
 from enum import Enum
 from lxml import etree
 
 import argh
-import argparse
-from argh.decorators import arg, named, wrap_errors
+from argh.decorators import arg, named
 from argh.exceptions import CommandError
-from qdeploy.elementconf import ElementConfError, load, make_id_mapper_elt
+from etconfig import ElementConfError, load, id2elt
 from qdeploy.utils import cmd, resource_path
 
 try:  # py3
@@ -26,6 +26,7 @@ except ImportError:  # py2
     from pipes import quote as sh_quote
 
 
+# pylint: disable=invalid-name
 logger = logging.getLogger(__name__)
 logging.basicConfig(handlers=[logging.StreamHandler()], level=logging.DEBUG)
 
@@ -47,13 +48,15 @@ def vm_extend(vm, vm_defaults):
     :param vm_defaults: Element representing the vm default parameters
 
     """
-    for arg in list(vm_defaults):
-        if vm.find(arg.tag) is None:
-            vm.append(deepcopy(arg))
+    for arg_i in list(vm_defaults):
+        if vm.find(arg_i.tag) is None:
+            vm.append(deepcopy(arg_i))
 
 
 def get_vm_group(group_name):
-    root = conf.getroot()
+    """find a group of name in conf
+    """
+    root = conf
     elems = root.findall('./group[name="{}"]/vm'.format(group_name))
     if elems is None:
         return []
@@ -72,7 +75,7 @@ def find_elem_list(tag, name_list, _all=False):
     """
     if name_list is None:
         name_list = []
-    root = conf.getroot()
+    root = conf
     res_elem_list = []
 
     if _all and len(name_list) > 0:
@@ -114,7 +117,7 @@ def generate_network_xml_file(resource_dir, nw):
 def is_running_in_docker():
     """check if the qdeploy.conf file defines a docker environment
     """
-    root = conf.getroot()
+    root = conf
     docker = root.find("docker")
     return docker is not None
 
@@ -134,9 +137,9 @@ def run_in_container(a_cmd, _interactive=False, _detached=False):
         container_exec = ["docker", "exec", opts, container_name]
         if isinstance(a_cmd, str):
             a_cmd = shlex.split(a_cmd)
-        cmd_to_execute =  container_exec + a_cmd
+        cmd_to_execute = container_exec + a_cmd
     else:
-        cmd_to_execute =  a_cmd
+        cmd_to_execute = a_cmd
 
     res = cmd(cmd_to_execute, _log=logger, _detached=_detached)
     if _detached:
@@ -176,14 +179,14 @@ def generate_virt_install_cmd(vm, vm_defaults, extra_args=None):
         disk_element = etree.SubElement(vm, 'disk')
         disk_element.text = os.path.join(os.getcwd(), name + ".qcow2")
 
-    for arg in list(vm):
-        cmd_array.append('--' + arg.tag)
+    for arg_i in list(vm):
+        cmd_array.append('--' + arg_i.tag)
         val = None
-        if arg.attrib:
-            attrs = ",".join(["{}={}".format(k, v) for k, v in arg.attrib.items()])
+        if arg_i.attrib:
+            attrs = ",".join(["{}={}".format(k, v) for k, v in arg_i.attrib.items()])
             val = attrs
         else:
-            val = arg.text
+            val = arg_i.text
 
         if val:
             cmd_array.append(sh_quote(val))
@@ -194,7 +197,10 @@ def generate_virt_install_cmd(vm, vm_defaults, extra_args=None):
 
 
 def get_container_name():
-    root = conf.getroot()
+    """get container name from conf file or default name 'qdeploy' if
+    none provided
+    """
+    root = conf
     name_node = root.find("docker/name")
     if name_node is None:
         return None
@@ -205,10 +211,13 @@ def get_container_name():
     return name_node.text
 
 def do_start_docker():
-    mounts=""
-    use_x11="false"
+    """start docker container by calling the .qdeploy/start_docker.sh
+    script
+    """
+    mounts = ""
+    use_x11 = "false"
 
-    root = conf.getroot()
+    root = conf
     container_name = get_container_name()
     if not container_name:
         raise CommandError("No docker container name defined in qdeploy.conf")
@@ -224,10 +233,13 @@ def do_start_docker():
 
     # os.chdir()
     res = cmd(["start_docker.sh", container_name, use_x11, mounts],
-              _log=logger, _cwd = QDEPLOY_RESOURCES_DIR)
+              _log=logger, _cwd=QDEPLOY_RESOURCES_DIR)
     res.exit_on_error()
 
 def do_stop_docker():
+    """stop docker container by calling the .qdeploy/stop_docker.sh
+    script
+    """
     os.chdir(QDEPLOY_RESOURCES_DIR)
     container_name = get_container_name()
     if not container_name:
@@ -260,10 +272,10 @@ def do_stop_nw(nw):
     :param nw: Element representing the network in libvirt format
 
     """
-    xml_file_name = generate_network_xml_file(QDEPLOY_RESOURCES_DIR, nw)
+    # xml_file_name = generate_network_xml_file(QDEPLOY_RESOURCES_DIR, nw)
     name = nw.find('name').text
 
-    abs_path = os.path.join(os.getcwd(), xml_file_name)
+    # abs_path = os.path.join(os.getcwd(), xml_file_name)
     # assume xml_file_name mounted in docker at the same location
     run_in_container(["virsh", "net-destroy", name])
     run_in_container(["virsh", "net-undefine", name])
@@ -275,7 +287,7 @@ def do_start_vm(vm, extra_args=None):
     directly converted to virt-install command line)
 
     """
-    root = conf.getroot()
+    root = conf
     vm_defaults = root.find("vm_defaults")
     virtinst_cmd = generate_virt_install_cmd(vm, vm_defaults, extra_args)
     res = run_in_container(virtinst_cmd)
@@ -283,9 +295,12 @@ def do_start_vm(vm, extra_args=None):
 
 
 class StopMode(Enum):
-    DESTROY=1
-    SHUTDOWN=2
-    REBOOT=3
+    """
+    possible modes to stop a vm
+    """
+    DESTROY = 1
+    SHUTDOWN = 2
+    REBOOT = 3
 
 def do_stop_vm(vm, stop_mode=StopMode.DESTROY):
     """undefine and stop a vm
@@ -294,7 +309,7 @@ def do_stop_vm(vm, stop_mode=StopMode.DESTROY):
     needed here.
 
     """
-    root = conf.getroot()
+    # root = conf
     name = vm.find('name').text
 
     if stop_mode == StopMode.DESTROY:
@@ -310,8 +325,11 @@ def do_stop_vm(vm, stop_mode=StopMode.DESTROY):
 
 
 def assert_conf():
+    """
+    check if config file has been loaded successfully or exit on error
+    """
     global conf
-    if not conf:
+    if conf is None:
         sys.exit(1)
 
 #----------------------------------------------------------------------
@@ -376,7 +394,7 @@ def cmd_start_env():
     start docker container
     """
     assert_conf()
-    root = conf.getroot()
+    root = conf
 
     if is_running_in_docker():
         do_start_docker()
@@ -393,7 +411,7 @@ def cmd_stop_env():
     stop docker container
     """
     assert_conf()
-    root = conf.getroot()
+    root = conf
 
     if is_running_in_docker():
         do_stop_docker()
@@ -410,7 +428,7 @@ def cmd_list_vm():
     """
     # :param list_all:  (Default value = False)
     assert_conf()
-    root = conf.getroot()
+    root = conf
     for n in root.iterfind("vm/name"):
         print(n.text)
 
@@ -421,14 +439,14 @@ def cmd_list_nw():
     # :param net_names:
     # :param list_all:  (Default value = False)
     assert_conf()
-    root = conf.getroot()
+    root = conf
     for n in root.iterfind("network/name"):
         print(n.text)
 
 
 @named("vm-start")
 @arg("vm_names", nargs='*')
-@arg("-a", "--all", dest="start_all" )
+@arg("-a", "--all", dest="start_all")
 def cmd_start_vm(vm_names, start_all=False, group=None):
     """start one or several vms
     """
@@ -457,7 +475,7 @@ def cmd_install_vm(vm_name, args):
 
 @named("vm-stop")
 @arg("vm_names", nargs='*', help="names of the vms to stop")
-@arg("-a", "--all", dest="stop_all", help="stop all vms defined in qdeploy.conf" )
+@arg("-a", "--all", dest="stop_all", help="stop all vms defined in qdeploy.conf")
 @arg("-s", "--shutdown")
 @arg("-r", "--reboot")
 def cmd_stop_vm(vm_names, stop_all=False, shutdown=False, reboot=False, group=None):
@@ -468,11 +486,11 @@ def cmd_stop_vm(vm_names, stop_all=False, shutdown=False, reboot=False, group=No
         raise CommandError("Cannot have both '--shutdown' and '--reboot'")
 
     if shutdown:
-        stop_mode=StopMode.SHUTDOWN
+        stop_mode = StopMode.SHUTDOWN
     elif reboot:
-        stop_mode=StopMode.REBOOT
+        stop_mode = StopMode.REBOOT
     else:
-        stop_mode=StopMode.DESTROY
+        stop_mode = StopMode.DESTROY
 
     if group is not None:
         vm_names = get_vm_group(group)
@@ -484,7 +502,7 @@ def cmd_stop_vm(vm_names, stop_all=False, shutdown=False, reboot=False, group=No
 
 @named("net-start")
 @arg("net_names", nargs='*')
-@arg("-a", "--all", dest="start_all" )
+@arg("-a", "--all", dest="start_all")
 def cmd_start_nw(net_names, start_all=False):
     """
     start one or several networks
@@ -522,12 +540,12 @@ def cmd_start_sh(cmd_to_execute):
     """
     # :param cmd_to_execute:
     assert_conf()
-    if len(cmd_to_execute):
-        cmd = ["bash", "-c",  " ".join(cmd_to_execute)]
-        run_in_container(cmd, _interactive=True,  _detached=True)
+    if cmd_to_execute:
+        cmd_lst = ["bash", "-c", " ".join(cmd_to_execute)]
+        run_in_container(cmd_lst, _interactive=True, _detached=True)
     else:
-        cmd = ["bash"]
-        run_in_container(cmd, _interactive=True, _detached=True)
+        cmd_lst = ["bash"]
+        run_in_container(cmd_lst, _interactive=True, _detached=True)
 
 # @named("virsh")
 # @arg('virsh_args', nargs=argparse.REMAINDER,
@@ -544,7 +562,7 @@ def main():
     global conf
 
     try:
-        id_mapper = make_id_mapper_elt("name")
+        id_mapper = id2elt("name")
         conf = load(QDEPLOY_CONF, id_mapper=id_mapper)
     except ElementConfError as exc:
         print("Syntax error in {}: {}".format(QDEPLOY_CONF, exc))
@@ -557,7 +575,7 @@ def main():
                          cmd_start_vm, cmd_install_vm, cmd_stop_vm, cmd_list_vm,
                          cmd_start_nw, cmd_stop_nw, cmd_list_nw,
                          cmd_start_virtmgr, cmd_start_sh,
-                         cmd_start, cmd_stop ])
+                         cmd_start, cmd_stop])
     parser.dispatch()
 
 

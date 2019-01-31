@@ -1,3 +1,4 @@
+git+https://github.com/yherve/etconfig.git
 lxml
 lark-parser
 argh

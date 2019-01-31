@@ -2,7 +2,7 @@
 #
 # This sample file starts 3 virtual machines and 3 networks:
 # ---------------------------------------------------------
-# - smc
+# - 1 management server 'smc'
 # - 2 nodes cluster engine
 #
 # the 'mgtnw1' network is used for the smc/engine communication. It is
@@ -13,9 +13,8 @@
 # nodes. They simulate an internal and an external zone.
 
 
-# start_cmd "sudo ip route add 10.0.2.0/24 via 172.17.0.2";
 # start_cmd "sudo ip route add 192.168.202.0/24 via 172.17.0.2";
-# stop_cmd "sudo ip route del 10.0.2.0/24 via 172.17.0.2";
+# stop_cmd "sudo ip route del 192.168.202.0/24 via 172.17.0.2";
 
 # docker "ngfw16097" {
 #     mount "/data/qemu/NGFW-16097";
