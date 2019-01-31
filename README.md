@@ -28,9 +28,13 @@ Requirements
 Installation
 -------------
 
-The virt-deploy tool is written in python 2.7.
+### download standalone binary
 
-The easiest way to install is to use the provided Makefile to generate
+The easiest way is to download a standalone binary [here](https://github.com/yherve/virt-deploy/releases/download/0.9/virt-deploy)
+
+### build standalone binary from sources
+
+ to install is to use the provided Makefile to generate
 a standalone binary. The requirements are python 2.7, pip,virtualenv
 and make
 
@@ -54,8 +58,7 @@ Check:
     virt-deploy: error: too few arguments
 
 
-Dev environment
---------------
+### use developer environment
 
     . use_venv.sh
 
@@ -368,7 +371,7 @@ and the networks you create.
 Example:
 
     docker "mycontainer" {
-        mount "/data/qemu/NGFW-16097";
+        mount "/data/qemu/vmtest";
         mount "/data/qemu/base";
         x11 true;
         start_cmd "iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE";
@@ -601,7 +604,7 @@ I prefer the second approach, so the config now becomes:
     start_cmd "sudo ip route add 192.168.100.0/24 via 172.17.0.2";
     stop_cmd "sudo ip route del 192.168.100.0/24 via 172.17.0.2";
     docker "mycontainer" {
-        mount "/data/qemu/NGFW-16097";
+        mount "/data/qemu/vmtest";
         mount "/data/qemu/base";
         start_cmd "iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE";
     }

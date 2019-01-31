@@ -231,8 +231,7 @@ def do_start_docker():
     if x11_node is not None:
         use_x11 = x11_node.text
 
-    # os.chdir()
-    res = cmd(["start_docker.sh", container_name, use_x11, mounts],
+    res = cmd(["./start_docker.sh", container_name, use_x11, mounts],
               _log=logger, _cwd=QDEPLOY_RESOURCES_DIR)
     res.exit_on_error()
 
@@ -245,7 +244,7 @@ def do_stop_docker():
     if not container_name:
         raise CommandError("No docker container name defined in qdeploy.conf")
 
-    res = cmd("stop_docker.sh {container}", container=container_name, _log=logger)
+    res = cmd("./stop_docker.sh {container}", container=container_name, _log=logger)
     res.print_on_error()
     print(res.out)
 
@@ -560,6 +559,8 @@ def cmd_start_sh(cmd_to_execute):
 def main():
     """entry point"""
     global conf
+
+    # os.environ["PATH"] = os.getcwd() + "/.qdeploy:" + os.environ.get("PATH")
 
     try:
         id_mapper = id2elt("name")
